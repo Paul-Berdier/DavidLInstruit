@@ -1,7 +1,6 @@
 import wikipedia
 import pandas as pd
 import logging
-import os
 from utils.preprocessing import TextPreprocessor
 import spacy
 

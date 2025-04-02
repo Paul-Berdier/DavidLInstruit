@@ -1,39 +1,32 @@
-import spacy
+import logging
+from sklearn.feature_extraction.text import TfidfVectorizer
 import numpy as np
-import networkx as nx
-from sklearn.metrics.pairwise import cosine_similarity
 
-# Chargement du modèle spaCy français
-nlp = spacy.load("fr_core_news_md")
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
-def sentence_similarity(sent1, sent2):
-    """Calcule la similarité entre deux phrases à l’aide de leurs vecteurs spaCy"""
-    return sent1.vector.reshape(1, -1), sent2.vector.reshape(1, -1)
+def summarize(text: str, max_sentences: int = 5) -> str:
+    """
+    Résumé extractif basé sur TF-IDF sans modèles pré-entraînés.
 
-def build_similarity_matrix(sentences):
-    """Construit une matrice de similarité entre phrases"""
-    n = len(sentences)
-    sim_matrix = np.zeros((n, n))
-    for i in range(n):
-        for j in range(n):
-            if i != j:
-                v1, v2 = sentence_similarity(sentences[i], sentences[j])
-                sim_matrix[i][j] = cosine_similarity(v1, v2)[0, 0]
-    return sim_matrix
+    :param text: Texte à résumer
+    :param max_sentences: Nombre maximal de phrases à conserver
+    :return: Résumé
+    """
+    logging.info("📝 Résumé extractif maison...")
 
-def summarize(text, max_lines=3):
-    """Résume un texte en extrayant les phrases les plus centrales"""
-    doc = nlp(text)
-    sentences = [sent for sent in doc.sents if len(sent.text.strip()) > 20]
+    # Découpage naïf en phrases
+    sentences = [s.strip() for s in text.split('. ') if len(s.strip()) > 10]
+    if len(sentences) <= max_sentences:
+        return text  # Rien à résumer
 
-    if len(sentences) <= max_lines:
-        return text
+    # TF-IDF
+    vectorizer = TfidfVectorizer()
+    tfidf_matrix = vectorizer.fit_transform(sentences)
+    sentence_scores = tfidf_matrix.sum(axis=1).A1
 
-    sim_matrix = build_similarity_matrix(sentences)
-    graph = nx.from_numpy_array(sim_matrix)
-    scores = nx.pagerank(graph)
+    # Sélection des meilleures phrases
+    top_indices = np.argsort(sentence_scores)[-max_sentences:]
+    top_indices.sort()
 
-    ranked_sentences = sorted(((scores[i], s.text) for i, s in enumerate(sentences)), reverse=True)
-    top_sentences = [s for _, s in ranked_sentences[:max_lines]]
-
-    return " ".join(top_sentences)
+    best_sentences = [sentences[i] for i in top_indices]
+    return '. '.join(best_sentences).strip() + '.'
