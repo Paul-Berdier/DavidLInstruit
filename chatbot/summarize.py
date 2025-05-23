@@ -1,6 +1,7 @@
 # chatbot/summarize_supervised.py
-
 import os
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
 import joblib
 import numpy as np
 import pandas as pd
@@ -20,10 +21,10 @@ from tensorflow.keras.preprocessing.sequence import pad_sequences
 class Summarizer:
     def __init__(self, data_path="data/summarization_cleaned.csv"):
         self.data_path = data_path
-        self.tfidf_path = "models/tfidf_vectorizer.joblib"
-        self.ml_model_path = "models/ml_summary_model.joblib"
-        self.dl_model_path = "models/dl_summary_model.h5"
-        self.tokenizer_path = "models/tokenizer_summary.joblib"
+        self.tfidf_path = os.path.join(BASE_DIR, "..", "models", "summarizer", "summary_tfidf_vectorizer.joblib")
+        self.ml_model_path = os.path.join(BASE_DIR, "..", "models", "summarizer", "ml_summary_model.joblib")
+        self.dl_model_path = "models/summarizer/dl_summary_model.h5"
+        self.tokenizer_path = "models/summarizer/tokenizer_summary.joblib"
         self._loaded = False
 
     def load_or_train(self):
@@ -116,7 +117,7 @@ class Summarizer:
         plt.ylabel("Accuracy")
         plt.legend()
         plt.grid(True)
-        plt.savefig("models/dl_accuracy_curve.png")
+        plt.savefig("docs/dl_accuracy_curve.png")
         plt.close()
 
         plt.plot(history.history['loss'], label='Train Loss')
@@ -126,7 +127,7 @@ class Summarizer:
         plt.ylabel("Loss")
         plt.legend()
         plt.grid(True)
-        plt.savefig("models/dl_loss_curve.png")
+        plt.savefig("docs/dl_loss_curve.png")
         plt.close()
 
         self.model_dl.save(self.dl_model_path)
@@ -135,12 +136,14 @@ class Summarizer:
         self._loaded = True
 
     def summarize_ml(self, text):
+        self.load_or_train()
         cleaned = clean_text(text)
         X = self.tfidf.transform([cleaned])
         pred = self.clf_ml.predict(X)[0]
         return text if pred == 1 else ""
 
     def summarize_dl(self, text):
+        self.load_or_train()
         cleaned = clean_text(text)
         seq = self.tokenizer.texts_to_sequences([cleaned])
         pad_seq = pad_sequences(seq, maxlen=self.maxlen)

@@ -35,7 +35,7 @@ def run_summarize():
 def run_app():
     title("LANCEMENT DE L'INTERFACE FASTAPI")
     time.sleep(1)
-    os.system("python interface/app.py")
+    os.system("uvicorn chatbot.interface.app:app --reload")
 
 def run_translate():
     import argostranslate.package

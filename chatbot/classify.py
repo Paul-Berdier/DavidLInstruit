@@ -17,10 +17,10 @@ from tensorflow.keras.preprocessing.text import Tokenizer
 from tensorflow.keras.preprocessing.sequence import pad_sequences
 
 class Classifier:
-    def __init__(self, data_path="data/20news_setfit_cleaned.csv", model_dir="models"):
+    def __init__(self, data_path="data/20news_setfit_cleaned.csv", model_dir="models/classifier"):
         self.data_path = data_path
         self.model_dir = model_dir
-        self.tfidf_path = os.path.join(model_dir, "tfidf_vectorizer.pkl")
+        self.tfidf_path = os.path.join(model_dir, "classify_tfidf_vectorizer.pkl")
         self.ml_model_path = os.path.join(model_dir, "classify_ml.pkl")
         self.dl_model_path = os.path.join(model_dir, "classify_dl.keras")
         self.tokenizer_path = os.path.join(model_dir, "classify_tokenizer.pkl")
@@ -108,7 +108,7 @@ class Classifier:
         plt.ylabel("Accuracy")
         plt.legend()
         plt.grid(True)
-        plt.savefig("models/classify_dl_accuracy.png")
+        plt.savefig("docs/classify_dl_accuracy.png")
         plt.close()
 
         # 📉 Courbe de perte (loss)
@@ -119,7 +119,7 @@ class Classifier:
         plt.ylabel("Loss")
         plt.legend()
         plt.grid(True)
-        plt.savefig("models/classify_dl_loss.png")
+        plt.savefig("docs/classify_dl_loss.png")
         plt.close()
 
         self.model_dl.save(self.dl_model_path)
