@@ -135,17 +135,25 @@ class Summarizer:
         print("✅ Modèle DL entraîné et sauvegardé.")
         self._loaded = True
 
-    def summarize_ml(self, text):
+    def summarize_ml(self, text, max_lines=3):
         self.load_or_train()
-        cleaned = clean_text(text)
-        X = self.tfidf.transform([cleaned])
-        pred = self.clf_ml.predict(X)[0]
-        return text if pred == 1 else ""
+        sentences = sent_tokenize(text)
+        cleaned = [clean_text(s) for s in sentences]
+        X = self.tfidf.transform(cleaned)
+        probs = self.clf_ml.predict_proba(X)[:, 1]  # proba que label = 1
+        top_idx = np.argsort(probs)[::-1][:max_lines]
+        top_sentences = [sentences[i] for i in sorted(top_idx)]
+        return " ".join(top_sentences)
 
-    def summarize_dl(self, text):
+    def summarize_dl(self, text, max_lines=3):
         self.load_or_train()
-        cleaned = clean_text(text)
-        seq = self.tokenizer.texts_to_sequences([cleaned])
-        pad_seq = pad_sequences(seq, maxlen=self.maxlen)
-        probs = self.model_dl.predict(pad_seq, verbose=0).ravel()
-        return text if probs[0] > 0.5 else ""
+        sentences = sent_tokenize(text)
+        cleaned = [clean_text(s) for s in sentences]
+        sequences = self.tokenizer.texts_to_sequences(cleaned)
+        padded = pad_sequences(sequences, maxlen=self.maxlen)
+        probs = self.model_dl.predict(padded, verbose=0).ravel()
+        top_idx = np.argsort(probs)[::-1][:max_lines]
+        top_sentences = [sentences[i] for i in sorted(top_idx)]
+        return " ".join(top_sentences)
+
+
