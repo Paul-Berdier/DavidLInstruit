@@ -1,47 +1,60 @@
-import logging
-from typing import Tuple
-import pandas as pd
-from utils.preprocessing import TextPreprocessor
-from utils.vectorizer import TextVectorizer
-from models.ml.ml_classifier import MLTextClassifier
-from models.dl.dl_classifier import DLTextClassifier
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.linear_model import LogisticRegression
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Embedding, LSTM, Dense
+from tensorflow.keras.preprocessing.text import Tokenizer
+from tensorflow.keras.preprocessing.sequence import pad_sequences
+import numpy as np
+from chatbot.preprocessing import clean_text
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+class ContextualModel:
+    def __init__(self, dataframe, model_type="ml"):
+        self.df = dataframe
+        self.model_type = model_type
+        self.vectorizer = None
+        self.model = None
+        self.tokenizer = None
+        self.maxlen = None
+        self.label_set = sorted(self.df["label"].unique())
+        self.label_to_index = {label: i for i, label in enumerate(self.label_set)}
+        self.index_to_label = {i: label for label, i in self.label_to_index.items()}
 
+    def train(self):
+        X = self.df["text"].astype(str).apply(clean_text).tolist()
+        y = np.array([self.label_to_index[label] for label in self.df["label"]])
 
-def train_contextual_model(df: pd.DataFrame, model_type: str = "ml") -> Tuple[object, TextVectorizer]:
-    """
-    Entraîne un modèle contextuel supervisé à la volée (ML ou DL).
+        if self.model_type == "ml":
+            self.vectorizer = TfidfVectorizer(max_features=5000)
+            X_vec = self.vectorizer.fit_transform(X)
+            self.model = LogisticRegression(max_iter=1000)
+            self.model.fit(X_vec, y)
 
-    :param df: DataFrame contenant les colonnes 'text' et 'label'
-    :param model_type: 'ml' (TF-IDF + LogisticRegression) ou 'dl' (Word2Vec + LSTM)
-    :return: tuple (modèle entraîné, encodeur de texte utilisé)
-    """
-    if not {'text', 'label'}.issubset(df.columns):
-        raise ValueError("Le DataFrame doit contenir les colonnes 'text' et 'label'.")
+        elif self.model_type == "dl":
+            self.tokenizer = Tokenizer(num_words=10000, oov_token="<OOV>")
+            self.tokenizer.fit_on_texts(X)
+            sequences = self.tokenizer.texts_to_sequences(X)
+            self.maxlen = max(len(s) for s in sequences)
+            X_pad = pad_sequences(sequences, maxlen=self.maxlen)
 
-    logging.info(f"🧪 Entraînement d’un modèle contextuel ({model_type.upper()})...")
+            self.model = Sequential()
+            self.model.add(Embedding(len(self.tokenizer.word_index) + 1, 64, input_length=self.maxlen))
+            self.model.add(LSTM(64))
+            self.model.add(Dense(len(self.label_set), activation="softmax"))
+            self.model.compile(loss="sparse_categorical_crossentropy", optimizer="adam", metrics=["accuracy"])
+            self.model.fit(X_pad, y, epochs=10, verbose=0)
 
-    texts = df["text"].tolist()
-    labels = df["label"].tolist()
+    def predict(self, text):
+        cleaned = clean_text(text)
 
-    preproc = TextPreprocessor()
-    texts_cleaned = [preproc.preprocess(t) for t in texts]
+        if self.model_type == "ml":
+            vec = self.vectorizer.transform([cleaned])
+            pred = self.model.predict(vec)[0]
+            return self.index_to_label[pred]
 
-    if model_type == "ml":
-        vectorizer = TextVectorizer(method="tfidf")
-        X = vectorizer.fit_transform_tfidf(texts_cleaned)
-        clf = MLTextClassifier(method="logreg")
-        clf.train(X, labels)
-        return clf, vectorizer
+        elif self.model_type == "dl":
+            seq = self.tokenizer.texts_to_sequences([cleaned])
+            pad = pad_sequences(seq, maxlen=self.maxlen)
+            pred = self.model.predict(pad, verbose=0)
+            return self.index_to_label[np.argmax(pred)]
 
-    elif model_type == "dl":
-        vectorizer = TextVectorizer(method="word2vec")
-        tokenized = [t.split() for t in texts_cleaned]
-        vectorizer.train_word2vec(tokenized)
-        clf = DLTextClassifier()
-        clf.train(tokenized, labels, vectorizer)
-        return clf, vectorizer
-
-    else:
-        raise ValueError("Méthode non supportée. Utilisez 'ml' ou 'dl'.")
+        return "❌ Aucun modèle chargé"
