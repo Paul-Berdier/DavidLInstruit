@@ -17,8 +17,9 @@ def menu():
     print(f"\n{CYAN}📦 CHOISISSEZ UNE OU PLUSIEURS ÉTAPES (séparées par une virgule) :{RESET}")
     print("1. 🧠 ENTRAÎNER LES MODÈLES DE CLASSIFICATION (classify)")
     print("2. 📝 ENTRAÎNER LES MODÈLES DE RÉSUMÉ (summarize)")
-    print("3. 🌍 CHARGER ET TESTER LA TRADUCTION (Argos Translate)")
-    print("4. 🚀 LANCER L'APPLICATION (interface FastAPI en localhost)")
+    print("3. 🔑 ENTRAÎNER LE MODÈLE DE MOTS-CLÉS (keyword)")
+    print("4. 🌍 CHARGER ET TESTER LA TRADUCTION (Argos Translate)")
+    print("5. 🚀 LANCER L'APPLICATION (interface FastAPI en localhost)")
     print("0. ❌ QUITTER")
     return input("\n👉 Choix (ex: 1,3) : ")
 
@@ -34,35 +35,34 @@ def run_summarize():
     summarizer = Summarizer()
     summarizer.load_or_train()
 
+def run_keyword():
+    title("ENTRAÎNEMENT DU MODÈLE DE MOTS-CLÉS")
+    from chatbot.keyword_extractor import KeywordExtractor
+    extractor = KeywordExtractor()
+    extractor.train()
+
 def run_app():
     title("LANCEMENT DE L'INTERFACE FASTAPI")
     time.sleep(1)
     os.system("uvicorn chatbot.interface.app:app --reload")
 
 def run_translate():
-    import os
     import urllib.request
     import argostranslate.package
     from termcolor import colored
 
     title("CHARGEMENT ET TEST DES MODÈLES DE TRADUCTION")
 
-    # Crée le dossier si nécessaire
     model_dir = "models"
     os.makedirs(model_dir, exist_ok=True)
 
-    # URLs des modèles
     urls = {
         "fr_en": "https://data.argosopentech.com/argospm/v1/translate-fr_en-1_9.argosmodel",
         "en_fr": "https://data.argosopentech.com/argospm/v1/translate-en_fr-1_9.argosmodel"
     }
 
-    paths = {
-        key: os.path.join(model_dir, os.path.basename(url))
-        for key, url in urls.items()
-    }
+    paths = {key: os.path.join(model_dir, os.path.basename(url)) for key, url in urls.items()}
 
-    # Téléchargement si absent
     for key, url in urls.items():
         path = paths[key]
         if not os.path.exists(path):
@@ -74,7 +74,6 @@ def run_translate():
                 print(f"❌ Erreur lors du téléchargement de {url} : {e}")
                 return
 
-    # Installation des modèles
     print("📦 Installation du modèle FR → EN...")
     argostranslate.package.install_from_path(paths["fr_en"])
     print("📦 Installation du modèle EN → FR...")
@@ -82,7 +81,6 @@ def run_translate():
 
     print("✅ Modèles installés avec succès.")
 
-    # ⬅️ Import maintenant que les langues sont installées
     try:
         from chatbot.translation import translate_fr_to_en, translate_en_to_fr
         print(colored("Traduction FR → EN :", "green"), translate_fr_to_en("Bonjour, comment vas-tu ?"))
@@ -101,6 +99,8 @@ if __name__ == "__main__":
         if "2" in choix:
             run_summarize()
         if "3" in choix:
-            run_translate()
+            run_keyword()
         if "4" in choix:
-           run_app()
+            run_translate()
+        if "5" in choix:
+            run_app()

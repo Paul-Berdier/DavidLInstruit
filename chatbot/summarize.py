@@ -1,4 +1,3 @@
-# chatbot/summarize_supervised.py
 import os
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -19,6 +18,7 @@ from tensorflow.keras.models import Sequential, load_model
 from tensorflow.keras.layers import Embedding, LSTM, Dense
 from tensorflow.keras.preprocessing.text import Tokenizer
 from tensorflow.keras.preprocessing.sequence import pad_sequences
+import matplotlib.pyplot as plt
 
 class Summarizer:
     def __init__(self, data_path="data/summarization_cleaned.csv"):
@@ -34,7 +34,6 @@ class Summarizer:
             print("✅ Modèles de résumé déjà chargés.")
             return
 
-        # === Chargement des modèles existants ===
         if os.path.exists(self.tfidf_path) and os.path.exists(self.ml_model_path) and \
            os.path.exists(self.dl_model_path) and os.path.exists(self.tokenizer_path):
             print("📦 Chargement des modèles ML & DL de résumé...")
@@ -46,42 +45,56 @@ class Summarizer:
             self._loaded = True
             return
 
-        # === Préparation des données ===
         print("📄 Chargement des données de résumé...")
+        # Chargement brut
         df = pd.read_csv(self.data_path).dropna().sample(frac=1.0, random_state=42)
 
-        # Génération automatique des labels si manquants
-        if "label" not in df.columns and "summary" in df.columns:
-            print("🔄 Génération des labels à partir des résumés...")
-            texts = df["text"].astype(str).tolist()
-            summaries = df["summary"].astype(str).tolist()
-            data = []
-            for i in range(len(texts)):
-                sentences = sent_tokenize(texts[i])
-                summary = summaries[i]
-                vectorizer = TfidfVectorizer().fit(sentences + [summary])
-                vec_sents = vectorizer.transform(sentences)
-                vec_summary = vectorizer.transform([summary])
-                scores = cosine_similarity(vec_sents, vec_summary).ravel()
-                for j, sent in enumerate(sentences):
-                    data.append({
-                        "text": sent,
-                        "label": int(scores[j] >= 0.4)
-                    })
-            df = pd.DataFrame(data)
-            df.to_csv(self.data_path, index=False)
-            print(f"✅ Nouveau dataset supervisé sauvegardé : {self.data_path}")
+        # ➕ Affichage de la distribution initiale
+        import seaborn as sns
+        import matplotlib.pyplot as plt
 
-        texts = df["cleaned"].astype(str).tolist()
+        sns.countplot(x=df["label"])
+        plt.title("Distribution des labels (initiale)")
+        plt.savefig("docs/label_distribution_initiale.png")
+        plt.close()
+
+        texts = df["text"].astype(str).tolist()
         labels = df["label"].astype(int).tolist()
-        cleaned = [t for t in texts]
+        cleaned = [clean_text(t) for t in texts]
+
+        # ➕ Rééquilibrage du dataset
+        df_minority = df[df["label"] == 1]
+        df_majority = df[df["label"] == 0].sample(n=len(df_minority) * 3, random_state=42)
+        df = pd.concat([df_minority, df_majority]).sample(frac=1.0, random_state=42)
+
+        # ➕ Affichage après équilibrage
+        sns.countplot(x=df["label"])
+        plt.title("Distribution des labels (équilibrée)")
+        plt.savefig("docs/label_distribution_equilibree.png")
+        plt.close()
 
         # === ML : TF-IDF + Logistic Regression ===
         print("🧠 Entraînement du modèle ML (TF-IDF + LogisticRegression)...")
         self.tfidf = TfidfVectorizer()
         X_tfidf = self.tfidf.fit_transform(cleaned)
-        self.clf_ml = LogisticRegression()
+        self.clf_ml = LogisticRegression(class_weight="balanced")
         self.clf_ml.fit(X_tfidf, labels)
+
+        # 🔍 Évaluation sur les données d'entraînement
+        from sklearn.metrics import classification_report, confusion_matrix, ConfusionMatrixDisplay
+
+        preds_ml = self.clf_ml.predict(X_tfidf)
+        print("\n📊 Rapport de classification (ML) :")
+        print(classification_report(labels, preds_ml, digits=3))
+
+        # 🔍 Matrice de confusion
+        cm = confusion_matrix(labels, preds_ml)
+        disp = ConfusionMatrixDisplay(confusion_matrix=cm)
+        disp.plot()
+        plt.title("Matrice de confusion (ML)")
+        plt.savefig("docs/ml_confusion_matrix.png")
+        plt.close()
+
         joblib.dump(self.tfidf, self.tfidf_path)
         joblib.dump(self.clf_ml, self.ml_model_path)
         print("✅ Modèle ML entraîné et sauvegardé.")
@@ -101,8 +114,6 @@ class Summarizer:
         self.model_dl.add(Dense(1, activation='sigmoid'))
         self.model_dl.compile(optimizer="adam", loss="binary_crossentropy", metrics=["accuracy"])
 
-        import matplotlib.pyplot as plt
-
         history = self.model_dl.fit(
             X_pad, y_array,
             epochs=3,
@@ -111,7 +122,6 @@ class Summarizer:
             verbose=1
         )
 
-        # 🔍 Courbes
         plt.plot(history.history['accuracy'], label='Train Acc')
         plt.plot(history.history['val_accuracy'], label='Val Acc')
         plt.title("Évolution de l'accuracy (DL)")
@@ -142,7 +152,7 @@ class Summarizer:
         sentences = sent_tokenize(text)
         cleaned = [clean_text(s) for s in sentences]
         X = self.tfidf.transform(cleaned)
-        probs = self.clf_ml.predict_proba(X)[:, 1]  # proba que label = 1
+        probs = self.clf_ml.predict_proba(X)[:, 1]
         top_idx = np.argsort(probs)[::-1][:max_lines]
         top_sentences = [sentences[i] for i in sorted(top_idx)]
         return " ".join(top_sentences)
@@ -157,5 +167,3 @@ class Summarizer:
         top_idx = np.argsort(probs)[::-1][:max_lines]
         top_sentences = [sentences[i] for i in sorted(top_idx)]
         return " ".join(top_sentences)
-
-

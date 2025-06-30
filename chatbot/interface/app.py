@@ -1,6 +1,7 @@
 import sys
 import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+os.system("python -m spacy download en_core_web_md")
 
 from fastapi import FastAPI, Request, Form
 from fastapi.responses import HTMLResponse
@@ -54,15 +55,18 @@ async def handle_question(
         summary_dl_en = summarizer.summarize_dl(question_en)
         response = f"ML : {translate_en_to_fr(summary_ml_en)}<br>DL : {translate_en_to_fr(summary_dl_en)}"
 
+
     elif mode == "wikipedia":
-        builder = WikipediaContextBuilder(question)
+        builder = WikipediaContextBuilder(translate_fr_to_en(question))
         builder.extract_keywords()
         builder.fetch_wikipedia_pages()
-        builder.build_corpus()
-        model = builder.train_model(model_type="ml")
-        result = model.predict(question)
-        summary = builder.pages.get(result, "❌ Aucun résumé trouvé.")
-        response = f"📚 Sujet identifié : <b>{result}</b><br>{summary}"
+        builder.build_corpus(summarize_each=True)
+        if not builder.corpus:
+            response = "❌ Aucun contenu Wikipedia pertinent n’a été trouvé."
+        else:
+            # Générer une réponse concise basée sur le corpus résumé
+            final_answer = translate_en_to_fr(builder.generate_answer(question))
+            response = f"📚 Réponse basée sur Wikipedia :<br><b>{final_answer}</b>"
 
     else:
         response = "❌ Mode inconnu"

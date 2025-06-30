@@ -1,11 +1,12 @@
 nltk
+wikipedia
 scikit-learn
 pandas
 wikipedia-api
 numpy
 requests
 transformers
-torch
+seaborn
 streamlit
 spacy
 gensim
