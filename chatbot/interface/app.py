@@ -1,7 +1,6 @@
 import sys
 import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-os.system("python -m spacy download en_core_web_md")
 
 from fastapi import FastAPI, Request, Form
 from fastapi.responses import HTMLResponse

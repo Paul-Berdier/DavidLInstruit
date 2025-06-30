@@ -1,20 +1,32 @@
-nltk
-wikipedia
-scikit-learn
-pandas
-wikipedia-api
-numpy
-requests
-transformers
-seaborn
-streamlit
+# Traitement de texte
 spacy
+nltk
 gensim
-tensorflow
-joblib
-keras
-gradio
-networkx
+transformers
 datasets
+
+# Résumés, embeddings et IA
+tensorflow
+keras
+joblib
+scikit-learn
+numpy
+pandas
+
+# Extraction Wikipedia
+wikipedia
+requests
+
+# Traduction locale (si utilisé dans ton code)
 argostranslate
+
+# Interface web
+fastapi
+jinja2
+uvicorn
+gradio
+
+# Modèle spaCy français (utile si tu veux repasser en français)
 fr_core_news_md @ https://github.com/explosion/spacy-models/releases/download/fr_core_news_md-3.7.0/fr_core_news_md-3.7.0-py3-none-any.whl
+# Modèle spaCy ENGLISH (moyen)
+en_core_web_md @ https://github.com/explosion/spacy-models/releases/download/en_core_web_md-3.7.0/en_core_web_md-3.7.0-py3-none-any.whl
