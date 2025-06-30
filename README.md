@@ -154,6 +154,7 @@ Menu :
 DavidLInstruit/
 │
 ├── chatbot/
+│   ├── interface/                   # Interface FastAPI + HTML/CSS
 │   ├── classify.py              # Classifieur (ML et DL)
 │   ├── summarize.py             # Résumé de texte
 │   ├── keyword_extractor.py     # Mots-clés
@@ -161,7 +162,6 @@ DavidLInstruit/
 │   └── translation.py           # Traduction Argos
 │
 ├── models/                      # Modèles sauvegardés
-├── interface/                   # Interface FastAPI + HTML/CSS
 ├── data/                        # Datasets et corpus générés
 ├── main.py                      # Menu principal
 ├── requirements.txt             # Dépendances
