@@ -4,10 +4,13 @@ import os
 import pandas as pd
 import numpy as np
 from chatbot.preprocessing import clean_text
+import matplotlib.pyplot as plt
 
 # === ML ===
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import classification_report, accuracy_score, confusion_matrix
 import joblib, os
 
 # === DL ===
@@ -15,11 +18,43 @@ from tensorflow.keras.models import Sequential, load_model
 from tensorflow.keras.layers import Embedding, LSTM, Dense
 from tensorflow.keras.preprocessing.text import Tokenizer
 from tensorflow.keras.preprocessing.sequence import pad_sequences
+from tensorflow.keras.callbacks import EarlyStopping
+
+label_groups = {
+    "sport": [
+        "rec.sport.hockey", "rec.sport.baseball"
+    ],
+    "informatique": [
+        "comp.sys.mac.hardware", "comp.os.ms-windows.misc", "comp.sys.ibm.pc.hardware", "comp.graphics", "comp.windows.x"
+    ],
+    "politique": [
+        "talk.politics.mideast", "talk.politics.guns", "talk.politics.misc"
+    ],
+    "religion": [
+        "alt.atheism", "talk.religion.misc", "soc.religion.christian"
+    ],
+    "science": [
+        "sci.space", "sci.crypt", "sci.electronics", "sci.med"
+    ],
+    "auto": [
+        "rec.autos", "misc.forsale"
+    ],
+    "société": [
+        "talk.misc", "alt.atheism"
+    ]
+}
+
+def simplify_label(label: str) -> str:
+    for group, sublabels in label_groups.items():
+        if label in sublabels:
+            return group
+    return label  # si aucune correspondance, on retourne le label original
 
 class Classifier:
     def __init__(self, data_path="data/20news_setfit_cleaned.csv", model_dir="models/classifier"):
         self.data_path = data_path
         self.model_dir = model_dir
+        os.makedirs(self.model_dir, exist_ok=True)  # 🔧 ajoute cette ligne ici
         self.tfidf_path = os.path.join(model_dir, "classify_tfidf_vectorizer.pkl")
         self.ml_model_path = os.path.join(model_dir, "classify_ml.pkl")
         self.dl_model_path = os.path.join(model_dir, "classify_dl.keras")
@@ -66,8 +101,21 @@ class Classifier:
         print("🧠 Entraînement du modèle ML (TF-IDF + LogisticRegression)...")
         self.tfidf = TfidfVectorizer(max_features=5000)
         X_tfidf = self.tfidf.fit_transform(cleaned_texts)
+
+        # Split des données
+        X_train, X_test, y_train, y_test = train_test_split(X_tfidf, labels, test_size=0.2, random_state=42)
+
         self.clf_ml = LogisticRegression(max_iter=1000)
-        self.clf_ml.fit(X_tfidf, labels)
+        self.clf_ml.fit(X_train, y_train)
+
+        # 🎯 Évaluation
+        y_pred = self.clf_ml.predict(X_test)
+        acc = accuracy_score(y_test, y_pred)
+        print(f"✅ Accuracy du modèle ML : {acc:.4f}")
+        print("\n📋 Classification report :")
+        print(classification_report(y_test, y_pred))
+
+        # 💾 Sauvegarde
         joblib.dump(self.tfidf, self.tfidf_path)
         joblib.dump(self.clf_ml, self.ml_model_path)
         print("✅ Modèle ML entraîné et sauvegardé.")
@@ -90,13 +138,14 @@ class Classifier:
         self.model_dl.add(Dense(len(self.label_to_index), activation="softmax"))
         self.model_dl.compile(loss="sparse_categorical_crossentropy", optimizer="adam", metrics=["accuracy"])
 
-        import matplotlib.pyplot as plt
+        early_stop = EarlyStopping(patience=3, restore_best_weights=True)
 
         history = self.model_dl.fit(
             X_pad, y,
-            epochs=10,
+            epochs=20,
             batch_size=64,
             validation_split=0.2,
+            callbacks=[early_stop],
             verbose=1
         )
 

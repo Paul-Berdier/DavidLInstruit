@@ -7,7 +7,9 @@ import numpy as np
 import pandas as pd
 import nltk
 nltk.download("punkt", quiet=True)
-from nltk.tokenize import sent_tokenize
+from nltk.tokenize.punkt import PunktSentenceTokenizer
+tokenizer = PunktSentenceTokenizer()
+sent_tokenize = tokenizer.tokenize
 
 from chatbot.preprocessing import clean_text
 from sklearn.feature_extraction.text import TfidfVectorizer

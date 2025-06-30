@@ -1,5 +1,7 @@
 import os
 import time
+import nltk
+nltk.download("punkt")
 
 # ANSI couleurs
 CYAN = "\033[96m"
@@ -38,31 +40,55 @@ def run_app():
     os.system("uvicorn chatbot.interface.app:app --reload")
 
 def run_translate():
+    import os
+    import urllib.request
     import argostranslate.package
+    from termcolor import colored
 
     title("CHARGEMENT ET TEST DES MODÈLES DE TRADUCTION")
 
-    model_path_fr_en = "models/translate-fr_en-1_9.argosmodel"
-    model_path_en_fr = "models/translate-en_fr-1_9.argosmodel"
+    # Crée le dossier si nécessaire
+    model_dir = "models"
+    os.makedirs(model_dir, exist_ok=True)
 
-    if not os.path.exists(model_path_en_fr):
-        raise FileNotFoundError(f"❌ Le fichier {model_path_en_fr} est introuvable.")
-    if not os.path.exists(model_path_fr_en):
-        raise FileNotFoundError(f"❌ Le fichier {model_path_fr_en} est introuvable.")
+    # URLs des modèles
+    urls = {
+        "fr_en": "https://data.argosopentech.com/argospm/v1/translate-fr_en-1_9.argosmodel",
+        "en_fr": "https://data.argosopentech.com/argospm/v1/translate-en_fr-1_9.argosmodel"
+    }
 
-    print("📦 Installation du modèle FR ↔ EN...")
-    argostranslate.package.install_from_path(model_path_fr_en)
-    print("📦 Installation du modèle EN ↔ FR...")
-    argostranslate.package.install_from_path(model_path_en_fr)
+    paths = {
+        key: os.path.join(model_dir, os.path.basename(url))
+        for key, url in urls.items()
+    }
 
-    print("✅ Modèle installé avec succès.")
+    # Téléchargement si absent
+    for key, url in urls.items():
+        path = paths[key]
+        if not os.path.exists(path):
+            print(f"⬇️ Téléchargement du modèle {key}...")
+            try:
+                urllib.request.urlretrieve(url, path)
+                print(f"✅ Modèle {key} téléchargé : {path}")
+            except Exception as e:
+                print(f"❌ Erreur lors du téléchargement de {url} : {e}")
+                return
 
+    # Installation des modèles
+    print("📦 Installation du modèle FR → EN...")
+    argostranslate.package.install_from_path(paths["fr_en"])
+    print("📦 Installation du modèle EN → FR...")
+    argostranslate.package.install_from_path(paths["en_fr"])
+
+    print("✅ Modèles installés avec succès.")
+
+    # ⬅️ Import maintenant que les langues sont installées
     try:
         from chatbot.translation import translate_fr_to_en, translate_en_to_fr
-        print(GREEN + "Traduction FR → EN :", translate_fr_to_en("Bonjour, comment vas-tu ?") + RESET)
-        print(GREEN + "Traduction EN → FR :", translate_en_to_fr("What are the benefits of learning AI?") + RESET)
+        print(colored("Traduction FR → EN :", "green"), translate_fr_to_en("Bonjour, comment vas-tu ?"))
+        print(colored("Traduction EN → FR :", "green"), translate_en_to_fr("What are the benefits of learning AI?"))
     except Exception as e:
-        print(RED + "❌ Erreur : " + str(e) + RESET)
+        print(colored("❌ Erreur : " + str(e), "red"))
 
 if __name__ == "__main__":
     while True:
