@@ -4,6 +4,7 @@ nltk
 gensim
 transformers
 datasets
+huggingface_hub
 
 # Résumés, embeddings et IA
 tensorflow
