@@ -4,6 +4,12 @@
 
 ---
 
+liens utiles:
+    site chat : davidlinstruit-production.up.railway.app
+    stockage models : https://huggingface.co/OnlySmaiil/david-models/tree/main
+
+---
+
 ## 🚀 Fonctionnalités
 
 | Fonction                   | Description                                               |
