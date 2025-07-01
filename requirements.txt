@@ -13,6 +13,7 @@ joblib
 scikit-learn
 numpy
 pandas
+matplotlib
 
 # Extraction Wikipedia
 wikipedia
